@@ -15,7 +15,7 @@ with open('tka.json', 'r') as f:
   tka = json.loads(f.read())
   tka = tka['messages']
 
-samples = 10000
+samples = 5000
 with open('gc.jl', 'w+') as f:
   for message in gc[:samples]:
     message['channel'] = 'gc'

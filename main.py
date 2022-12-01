@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from sklearn.compose import ColumnTransformer
+from sklearn.base import TransformerMixin
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
@@ -12,7 +13,7 @@ from sklearn.feature_selection import SelectKBest, VarianceThreshold
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import confusion_matrix, plot_confusion_matrix
-from sklearn.decomposition import LatentDirichletAllocation
+from sklearn.decomposition import LatentDirichletAllocation, PCA
 
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier, plot_tree
@@ -48,9 +49,40 @@ decision_tree_params = {
 }
 
 trials = [
-  ('dt', decision_tree_params, DecisionTreeClassifier())
+  ('dt', decision_tree_params, DecisionTreeClassifier()),
 ]
 
+class DenseTransformer(TransformerMixin):
+  def fit(self, X, y=None, **fit_params):
+    return self
+
+  def transform(self, X, y=None, **fit_params):
+    return X.todense()
+
+exploratory_pipeline = Pipeline(
+    [
+      ('col_transform', column_transformer),
+      ('densify', DenseTransformer()),
+      ('threshold', VarianceThreshold()),
+      ('kbest', SelectKBest(k=1000)),
+      ('pca', PCA(n_components=3))
+    ]
+)
+
+X_train = column_transformer.fit_transform(X_train)
+X_train = DenseTransformer().fit_transform(X_train)
+X_train = VarianceThreshold().fit_transform(X_train)
+X_train = PCA().fit_transform(X_train)
+
+ax = plt.gcf().add_subplot(projection='3d')
+
+ax.scatter(
+  X_train[:,0], X_train[:, 1], X_train[:, 2], c=y_train.ravel(), label=y_train.ravel()
+)
+ax.legend()
+plt.show()
+
+'''
 for classifier_name, classifier_params, classifier in trials:
   pipeline = Pipeline(
     [
@@ -62,7 +94,7 @@ for classifier_name, classifier_params, classifier in trials:
   )
 
   param_grid = {
-    'kbest__k': [1000],
+    'kbest__k': [600, 700, 1000],
   } | classifier_params
 
   grid_search = GridSearchCV(
@@ -82,15 +114,10 @@ for classifier_name, classifier_params, classifier in trials:
   )
 
 
-  '''
   labels = [label_map[i] for i in range(2)]
   plt.xlabel('Predicted Label')
   plt.ylabel('True Label')
 
   matrix.ax_.set_title('Confusion Matrix')
   plt.show()
-  plt.clf()
-  '''
-
-  plot_tree(grid_search.best_estimator_.steps[-1][1], max_depth = 100)
-  plt.show()
+'''
