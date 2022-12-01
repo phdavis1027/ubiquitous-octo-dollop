@@ -11,23 +11,22 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_selection import SelectKBest, VarianceThreshold
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix, plot_confusion_matrix
 from sklearn.decomposition import LatentDirichletAllocation
 
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+
 df = pd.read_csv('data.csv')
-df = df[['text', 'channel']].dropna()
-print(df['channel'].unique())
+df = df[['text', 'channel', 'date_unixtime']].dropna()
 
 X = df.drop('channel', axis=1)
-Y = df.drop('text', axis=1)
+Y = df.drop(['text', 'date_unixtime'], axis=1)
 label_encoder = LabelEncoder()
 label_encoder.fit(Y)
 Y = label_encoder.transform(Y)
 label_map = dict(zip(label_encoder.classes_, label_encoder.transform(label_encoder.classes_)))
-print('Label Map:', label_map)
-
-lda = LatentDirichletAllocation(n_components=5)
+label_map = {value : key for key, value in label_map.items()}
 
 X_train, X_test, y_train, y_test = train_test_split(
   X, Y, random_state=1
@@ -35,7 +34,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 column_transformer = ColumnTransformer(
   [
-    ('tfidf',TfidfVectorizer(), 'text')
+    ('tfidf', TfidfVectorizer(), 'text')
   ],
   remainder='passthrough'
 )
@@ -44,8 +43,12 @@ svc_params = {
   'svc__kernel': ['rbf'],
 }
 
+decision_tree_params = {
+  'dt__criterion': ['gini', 'log_loss']
+}
+
 trials = [
-  ('svc', svc_params, SVC())
+  ('dt', decision_tree_params, DecisionTreeClassifier())
 ]
 
 for classifier_name, classifier_params, classifier in trials:
@@ -59,7 +62,7 @@ for classifier_name, classifier_params, classifier in trials:
   )
 
   param_grid = {
-    'kbest__k': [600],
+    'kbest__k': [1000],
   } | classifier_params
 
   grid_search = GridSearchCV(
@@ -78,8 +81,16 @@ for classifier_name, classifier_params, classifier in trials:
     y_test
   )
 
+
+  '''
+  labels = [label_map[i] for i in range(2)]
   plt.xlabel('Predicted Label')
   plt.ylabel('True Label')
 
   matrix.ax_.set_title('Confusion Matrix')
+  plt.show()
+  plt.clf()
+  '''
+
+  plot_tree(grid_search.best_estimator_.steps[-1][1], max_depth = 100)
   plt.show()
