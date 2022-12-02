@@ -69,6 +69,7 @@ exploratory_pipeline = Pipeline(
     ]
 )
 
+'''
 X_train = column_transformer.fit_transform(X_train)
 X_train = DenseTransformer().fit_transform(X_train)
 X_train = VarianceThreshold().fit_transform(X_train)
@@ -95,6 +96,7 @@ for classifier_name, classifier_params, classifier in trials:
 
   param_grid = {
     'kbest__k': [600, 700, 1000],
+    'lda__n_components': [10, 20, 40, 80, 160]
   } | classifier_params
 
   grid_search = GridSearchCV(
@@ -120,4 +122,3 @@ for classifier_name, classifier_params, classifier in trials:
 
   matrix.ax_.set_title('Confusion Matrix')
   plt.show()
-'''
