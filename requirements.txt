@@ -3,3 +3,4 @@ pandas
 scikit-learn
 ciso8601
 matplotlib
+gender-guesser

@@ -1,7 +1,12 @@
 total_fits = 0
 RESULTS_DIR = './result'
 
+from augment_data import (
+  add_gender
+)
+
 import datetime
+when = datetime.datetime.now()
 import os
 import time
 import json
@@ -113,7 +118,7 @@ X_PCA = column_transformer.fit_transform(
 )
 X_PCA = PCA(n_components=3).fit_transform(X_PCA.todense())
 
-fig, ax = plt.subplots(project='3d')
+fig, ax = plt.subplots(projection='3d')
 
 ax.scatter(
   X_PCA[:, 0],
@@ -126,7 +131,7 @@ plt.figure(fig)
 plt.savefig(
   os.path.join(
     RESULTS_DIR,
-    re.sub(" ", "", f"{datetime.datetime.now()}-pca.png")
+    re.sub(" ", "", f"{when}-pca.png")
   )
 )
 print('PCA Projection Plot saved')
@@ -137,11 +142,10 @@ def save_params_and_results(
   classifier_name,
   grid_cv
 ):
+  global when
   RESULTS_DIR = './result'
   if not os.path.exists(RESULTS_DIR):
      os.mkdir(RESULTS_DIR)
-
-  when = datetime.datetime.now()
 
   with open(
     os.path.join(
@@ -188,14 +192,12 @@ for classifier_name, classifier_params, classifier in trials:
   accuracy = balanced_accuracy_score(y_test, prediction, adjusted=True)
   print("[Balanced Accuracy]", accuracy)
 
-  '''
   save_params_and_results(
     accuracy,
     param_grid,
     classifier_name,
     grid_search
   )
-  '''
 
   matrix = ConfusionMatrixDisplay.from_estimator(
     grid_search,
@@ -212,7 +214,7 @@ for classifier_name, classifier_params, classifier in trials:
   plt.savefig(
     os.path.join(
       RESULTS_DIR,
-      re.sub(" ", "", f"{datetime.datetime.now()}-confusion.png")
+      re.sub(" ", "", f"{when}-confusion.png")
     )
   )
   print(f'Confusion Matrix for {classifier_name} saved.')
