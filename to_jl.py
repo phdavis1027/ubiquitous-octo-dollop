@@ -1,4 +1,5 @@
 import json
+import random
 import datetime as dt
 dt = dt.date
 
@@ -11,7 +12,6 @@ gc_min = min(
   gc,
   key=lambda msg: msg['date_unixtime']
 )
-print(dt.fromtimestamp(int(gc_min['date_unixtime'])))
 
 psf = None
 with open('psf.json', 'r') as f:
@@ -22,7 +22,6 @@ psf_min = min(
   psf,
   key=lambda msg: msg['date_unixtime']
 )
-print(dt.fromtimestamp(int(psf_min['date_unixtime'])))
 
 tka = None
 with open('tka.json', 'r') as f:
@@ -33,9 +32,41 @@ tka_min = min(
   tka,
   key=lambda msg: msg['date_unixtime']
 )
-print(dt.fromtimestamp(int(tka_min['date_unixtime'])))
+
+overall_min = min(
+  tka_min,
+  psf_min,
+  gc_min,
+  key=lambda msg: msg['date_unixtime']
+)
+
+criterion = lambda msg: msg['date_unixtime'] > overall_min['date_unixtime']
+
+tka = list(filter(
+  criterion,
+  tka
+))
+
+gc = list(filter(
+  criterion,
+  gc
+))
+
+psf = list(filter(
+  criterion,
+  psf
+))
+
+random.shuffle(tka)
+random.shuffle(gc)
+random.shuffle(psf)
+
+print('Length of tka', len(tka), 'vs age', tka_min['date_unixtime'])
+print('Length of gc', len(gc), 'vs age', gc_min['date_unixtime'])
+print('Length of psf', len(psf), 'vs age', psf_min['date_unixtime'])
 
 samples = 10000
+
 with open('gc.jl', 'w+') as f:
   for message in gc[:samples]:
     message['channel'] = 'gc'
