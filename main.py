@@ -66,8 +66,8 @@ column_transformer = ColumnTransformer(
 
 svc_params = {
   'svc__kernel': ['rbf'],
-  'svc__C': [2**k for k in range(-5, 16, 2)],
-  'svc__gamma': [2**k for k in range(-15, 4, 2)]
+  'svc__C': [32],
+  'svc__gamma': [0.0001220703125]
 }
 
 trials = [
@@ -94,6 +94,7 @@ canary_num = 0
 class CanaryTransformer(TransformerMixin):
   last_time = None
   def __init__(self, next_step, by=1, columns=None):
+    self.next_step = next_step
     if not CanaryTransformer.last_time:
       CanaryTransformer.last_time = time.perf_counter()
 
@@ -193,10 +194,10 @@ for classifier_name, classifier_params, classifier in trials:
   )
 
   if n_jobs > 1:
-    pipeline.steps_ = list(filter(lambda trans: not isinstance(trans[1], CanaryTransformer), pipeline.steps_))
+    pipeline.steps = list(filter(lambda trans: not isinstance(trans[1], CanaryTransformer), pipeline.steps))
 
   param_grid = {
-    'kbest__k': [1000, 1100, 1200, 1300]
+    'kbest__k': [1000]
   } | classifier_params
 
   grid_search = GridSearchCV(
@@ -205,7 +206,7 @@ for classifier_name, classifier_params, classifier in trials:
     verbose=True,
     return_train_score=True,
     scoring='balanced_accuracy',
-    n_jobs=multiprocessing.cpu_count() - 1
+    n_jobs=n_jobs
   )
 
   grid_search.fit(X_train, y_train.ravel())

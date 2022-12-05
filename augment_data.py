@@ -93,11 +93,7 @@ def add_msg_sentiment(df):
     cur_neu = []
     cur_pos = []
     lines_list = tokenize.sent_tokenize(msg)
-    if not not not lines_list:
-      cur_neg.append(np.nan)
-      cur_neu.append(np.nan)
-      cur_pos.append(np.nan)
-      cur_compound.append(np.nan)
+    print(lines_list)
     for line in lines_list:
       analyzer = SentimentIntensityAnalyzer()
       polarity_scores = analyzer.polarity_scores(line)
