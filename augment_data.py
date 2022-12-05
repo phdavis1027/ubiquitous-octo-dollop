@@ -1,8 +1,21 @@
 import pandas as pd
+import numpy as np
+from statistics import mean
+import re
+import ast
+import json
 import gender_guesser.detector as gg
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from nltk import tokenize
+import nltk
+nltk.download('punkt')
+nltk.download('vader_lexicon')
 from sklearn.preprocessing import LabelEncoder
 
-df = pd.read_csv('data.csv', low_memory=False)
+COMPOUND = 0
+NEG = 1
+NEU = 2
+POS = 3
 
 def add_gender(df):
   detector = gg.Detector(case_sensitive=False)
@@ -40,15 +53,18 @@ def add_gender(df):
   return df
 
 def clean_text(df):
-
   text_types = {'plain', 'bold', 'text_link'}
   text = []
-  msg_length = []
-  for entity in df['text_entities']:
+  entities_lists = []
+  for entities_list in df['text_entities']:
+    jsonified = ast.literal_eval(entities_list)
+    entities_lists.append(jsonified)
+
+  for entities_list in entities_lists:
     msg = ""
-    for part in entity:
-      if part['type'] in text_types:
-        msg += f"{part['text']}"
+    for entity in entities_list:
+      if entity['type'] in text_types:
+        msg += f"{entity['text']}"
 
     text.append(msg)
 
@@ -65,5 +81,39 @@ def add_msg_length(df):
   return df
 
 def add_msg_sentiment(df):
-  pass
+  compound = []
+  neg = []
+  neu = []
+  pos = []
+  for msg in df['text']:
+    if not msg:
+      continue
+    cur_compound = []
+    cur_neg = []
+    cur_neu = []
+    cur_pos = []
+    lines_list = tokenize.sent_tokenize(msg)
+    if not not not lines_list:
+      cur_neg.append(np.nan)
+      cur_neu.append(np.nan)
+      cur_pos.append(np.nan)
+      cur_compound.append(np.nan)
+    for line in lines_list:
+      analyzer = SentimentIntensityAnalyzer()
+      polarity_scores = analyzer.polarity_scores(line)
+      cur_compound.append(polarity_scores['compound'])
+      cur_neg.append(polarity_scores['neg'])
+      cur_pos.append(polarity_scores['pos'])
+      cur_neu.append(polarity_scores['neu'])
 
+    compound.append(mean(cur_compound))
+    neg.append(mean(cur_neg))
+    neu.append(mean(cur_neu))
+    pos.append(mean(cur_pos))
+
+  df['compound'] = compound
+  df['neg'] = neg
+  df['neu'] = neu
+  df['pos'] = pos
+
+  return df
