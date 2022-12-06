@@ -3,12 +3,7 @@ RESULTS_DIR = './result'
 
 import seaborn as sns
 
-from augment_data import (
-  add_gender,
-  add_msg_sentiment,
-  clean_text,
-  add_msg_length
-)
+from custom_transformers import *
 
 import threading
 import multiprocessing
@@ -28,7 +23,7 @@ import matplotlib.pyplot as plt
 
 from sklearn.compose import ColumnTransformer
 from sklearn.base import TransformerMixin
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.feature_selection import SelectKBest, VarianceThreshold
@@ -60,13 +55,6 @@ X_train, X_test, y_train, y_test = train_test_split(
   X, Y, random_state=1
 )
 
-column_transformer = ColumnTransformer(
-  [
-    ('tfidf', TfidfVectorizer(), 'text')
-  ],
-  remainder='passthrough'
-)
-
 '''
   'svc__C': [2**k for k in np.arange(4, 6, 0.1)],
   'svc__gamma': [2**k for k in np.arange(-15, -12, 0.25)]
@@ -79,65 +67,20 @@ svc_params = {
 }
 
 cnb_params = {
-  'cnb__alpha': [0.3],
+  'cnb__alpha': [2**k for k in range(8)],
   'cnb__norm': [True, False]
 }
 
-'''
-'''
 trials = [
-  ('svc', svc_params, SVC())
+  ('cnb', cnb_params, ComplementNB())
 ]
 
-class NDArraySaver(TransformerMixin):
-  def fit(self, X, y=None, **fit_params):
-    return self
-
-  def transform(self, X, y=None, **fit_params):
-    np.save('features.npy', X.todense())
-    return X
-
-class DenseTransformer(TransformerMixin):
-  def fit(self, X, y=None, **fit_params):
-    return self
-
-  def transform(self, X, y=None, **fit_params):
-    print('Densifying')
-    return X.todense()
-
-class SparseTransformer(TransformerMixin):
-  def fit(self, X, y=None, **fit_params):
-    return self
-
-  def transform(self, X, y=None, **fit_params):
-    print('Sparsifying')
-    return sparse.csr_matrix(X)
-
-canary_num = 0
-class CanaryTransformer(TransformerMixin):
-  last_time = None
-  def __init__(self, next_step, by=1, columns=None):
-    self.next_step = next_step
-    if not CanaryTransformer.last_time:
-      CanaryTransformer.last_time = time.perf_counter()
-
-  def fit(self, X, y=None, **fit_params):
-    return self
-
-  def transform(self, X, y=None, **fit_params):
-    global canary_num
-    global total_fits
-    print('[CANARY] About to launch', self.next_step, '...')
-    print('This is iteration', canary_num, 'of', total_fits)
-    canary_num += 1
-
-    cur_time = time.perf_counter()
-    elapsed_time = cur_time - CanaryTransformer.last_time
-    print('Last step took about', elapsed_time, 'seconds')
-    print('---')
-    CanaryTransformer.last_time = cur_time
-
-    return X
+column_transformer = ColumnTransformer(
+  [
+    ('topify', TopicTransformer(), 'text')
+  ],
+  remainder='passthrough'
+)
 
 if len(sys.argv) > 1 and sys.argv[1] == 'pca':
   color_map = {
@@ -188,7 +131,7 @@ def save_params_and_results(
   with open(
     os.path.join(
       RESULTS_DIR,
-      'svc_huge.txt'
+      'cnb_with_lda.txt'
     ),
     'w+'
   ) as f:
@@ -196,22 +139,17 @@ def save_params_and_results(
     f.write(f"[PIPELINE STEPS]\n")
     f.write(f"{grid_cv.best_estimator_.steps}")
 
-  pd.DataFrame(grid_cv.cv_results_).to_csv("result/svc_huge.csv")
+  pd.DataFrame(grid_cv.cv_results_).to_csv("result/cnb_with_lda.csv")
 
   ### Save a projection of the whole dataset
 for classifier_name, classifier_params, classifier in trials:
   n_jobs = multiprocessing.cpu_count() - 1
   pipeline = Pipeline(
     [
-      ('can_0', CanaryTransformer("Column Transformer (TFIDF on column 'text')")),
       ('col_transform', column_transformer),
-      ('can_1', CanaryTransformer("StandardScaler")),
       ('std_scaler', StandardScaler(with_mean=False)),
-      ('can_2', CanaryTransformer("VarianceThreshold")),
       ('threshold', VarianceThreshold()),
-      ('can_3', CanaryTransformer('SelectKBest')),
       ('kbest', SelectKBest()),
-      ('can_4', CanaryTransformer(classifier_name)),
       (classifier_name, classifier)
     ]
   )
@@ -220,7 +158,8 @@ for classifier_name, classifier_params, classifier in trials:
     pipeline.steps = list(filter(lambda trans: not isinstance(trans[1], CanaryTransformer), pipeline.steps))
 
   param_grid = {
-    'kbest__k': [1005]
+    'kbest__k': ['all'],
+    'col_transform__topify__n_components': [2**k for k in range(7, 14)]
   } | classifier_params
 
   grid_search = GridSearchCV(
@@ -260,7 +199,7 @@ for classifier_name, classifier_params, classifier in trials:
   plt.savefig(
     os.path.join(
       RESULTS_DIR,
-      re.sub(" ", "", f"svc_huge.png")
+      re.sub(" ", "", f"cnb_with_lda.png")
     )
   )
   print(f'Confusion Matrix for {classifier_name} saved.')

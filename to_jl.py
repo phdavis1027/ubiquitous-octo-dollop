@@ -67,7 +67,7 @@ print('Length of tka', len(tka), 'vs age', tka_min['date_unixtime'])
 print('Length of gc', len(gc), 'vs age', gc_min['date_unixtime'])
 print('Length of psf', len(psf), 'vs age', psf_min['date_unixtime'])
 
-samples = 50000
+samples = 10000
 
 with open('gc.jl', 'w+') as f:
   for message in gc[:samples]:
