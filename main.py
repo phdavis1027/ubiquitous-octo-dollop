@@ -26,13 +26,13 @@ import matplotlib.pyplot as plt
 
 from sklearn.compose import ColumnTransformer
 from sklearn.base import TransformerMixin
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.feature_selection import SelectKBest, VarianceThreshold
 from sklearn.metrics import balanced_accuracy_score, ConfusionMatrixDisplay
 from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.decomposition import LatentDirichletAllocation, PCA
+from sklearn.decomposition import LatentDirichletAllocation, NMF, PCA
 
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier, plot_tree
@@ -57,7 +57,35 @@ X_train, X_test, y_train, y_test = train_test_split(
   X, Y, random_state=1
 )
 
-column_transformer = ColumnTransformer(
+class LdaTransformer(TransformerMixin):
+  def fit(self, X, y=None, **fit_params):
+    cv = CountVectorizer()
+    lda = LatentDirichletAllocation(
+      n_components=fit_params['n_components'],
+      topic_word_prior=fit_params['topic_word_prior'],
+      learning_method=fit_params['learning_method'],
+      learning_decay=fit_params['learning_decay'],
+      max_iter=fit_params['max_iter']
+    )
+    bow = cv.fit_transform(X)
+    return lda.fit(bow)
+
+  def transform(self, X, y=None, **fit_params):
+    return self
+
+topic_anlys = [
+  # ('lda', ColumnTransformer([('lda', LdaTransformer, 'text')]))
+  'lda'
+]
+
+count_transformer = ColumnTransformer(
+  [
+    ('cv', CountVectorizer, 'text')
+  ],
+  remainder='passthrough'
+)
+
+tfidf_transformer = ColumnTransformer(
   [
     ('tfidf', TfidfVectorizer(), 'text')
   ],
@@ -123,7 +151,7 @@ if len(sys.argv) > 1 and sys.argv[1] == 'pca':
     2: 'blue'
   }
 
-  X_PCA = column_transformer.fit_transform(
+  X_PCA = tfidf_transformer.fit_transform(
     X
   )
   X_PCA = PCA(n_components=3).fit_transform(X_PCA.todense())
@@ -177,68 +205,78 @@ def save_params_and_results(
 
   ### Save a projection of the whole dataset
 for classifier_name, classifier_params, classifier in trials:
-  n_jobs = multiprocessing.cpu_count() - 1
-  pipeline = Pipeline(
-    [
-      ('can_0', CanaryTransformer("Column Transformer (TFIDF on column 'text')")),
-      ('col_transform', column_transformer),
-      ('can_1', CanaryTransformer("StandardScaler")),
-      ('std_scaler', StandardScaler(with_mean=False)),
-      ('can_2', CanaryTransformer("VarianceThreshold")),
-      ('threshold', VarianceThreshold()),
-      ('can_3', CanaryTransformer('SelectKBest')),
-      ('kbest', SelectKBest()),
-      ('can_4', CanaryTransformer(classifier_name)),
-      (classifier_name, classifier)
-    ]
-  )
+  for analyzer_name in topic_anlys:
+    n_jobs = multiprocessing.cpu_count() - 1
+    analyzer = None
+    transformer = None
 
-  if n_jobs > 1:
-    pipeline.steps = list(filter(lambda trans: not isinstance(trans[1], CanaryTransformer), pipeline.steps))
+    if analyzer_name == 'lda':
+      analyzer = LatentDirichletAllocation()
+      transformer = count_transformer
 
-  param_grid = {
-    'kbest__k': [1000]
-  } | classifier_params
-
-  grid_search = GridSearchCV(
-    pipeline,
-    param_grid,
-    verbose=True,
-    return_train_score=True,
-    scoring='balanced_accuracy',
-    n_jobs=n_jobs
-  )
-
-  grid_search.fit(X_train, y_train.ravel())
-  prediction = grid_search.predict(X_test)
-
-  accuracy = balanced_accuracy_score(y_test, prediction, adjusted=True)
-  print("[Balanced Accuracy]", accuracy)
-
-  save_params_and_results(
-    accuracy,
-    param_grid,
-    classifier_name,
-    grid_search
-  )
-
-  matrix = ConfusionMatrixDisplay.from_estimator(
-    grid_search,
-    X_test,
-    y_test
-  )
-
-  plt.figure(matrix.figure_)
-
-  plt.xlabel('Predicted Label')
-  plt.ylabel('True Label')
-
-  matrix.ax_.set_title('Confusion Matrix')
-  plt.savefig(
-    os.path.join(
-      RESULTS_DIR,
-      re.sub(" ", "", f"{when}-confusion.png")
+    pipeline = Pipeline(
+      [
+        ('can_0', CanaryTransformer("Column Transformer (TFIDF on column 'text')")),
+        ('col_transform', transformer),
+        ('can_0.1', CanaryTransformer("LDA")),
+        (analyzer_name, analyzer),
+        ('can_1', CanaryTransformer("StandardScaler")),
+        ('std_scaler', StandardScaler(with_mean=False)),
+        ('can_2', CanaryTransformer("VarianceThreshold")),
+        ('threshold', VarianceThreshold()),
+        ('can_3', CanaryTransformer('SelectKBest')),
+        ('kbest', SelectKBest()),
+        ('can_4', CanaryTransformer(classifier_name)),
+        (classifier_name, classifier)
+      ]
     )
-  )
-  print(f'Confusion Matrix for {classifier_name} saved.')
+
+    if n_jobs > 1:
+      pipeline.steps = list(filter(lambda trans: not isinstance(trans[1], CanaryTransformer), pipeline.steps))
+
+    param_grid = {
+      'kbest__k': [1000]
+    } | classifier_params
+
+    grid_search = GridSearchCV(
+      pipeline,
+      param_grid,
+      verbose=True,
+      return_train_score=True,
+      scoring='balanced_accuracy',
+      n_jobs=n_jobs
+    )
+
+    grid_search.fit(X_train, y_train.ravel())
+    prediction = grid_search.predict(X_test)
+
+    accuracy = balanced_accuracy_score(y_test, prediction, adjusted=True)
+    print("[Balanced Accuracy]", accuracy)
+
+    save_params_and_results(
+      accuracy,
+      param_grid,
+      classifier_name,
+      grid_search
+    )
+
+    matrix = ConfusionMatrixDisplay.from_estimator(
+      grid_search,
+      X_test,
+      y_test
+    )
+
+    plt.figure(matrix.figure_)
+
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+
+    matrix.ax_.set_title('Confusion Matrix')
+    plt.savefig(
+      os.path.join(
+        RESULTS_DIR,
+        re.sub(" ", "", f"{when}-confusion.png")
+      )
+    )
+    print(f'Confusion Matrix for {classifier_name} saved.')
 
