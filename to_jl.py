@@ -1,4 +1,5 @@
 import json
+import time
 import random
 import datetime as dt
 dt = dt.date
@@ -57,6 +58,7 @@ psf = list(filter(
   psf
 ))
 
+random.seed(time.time())
 random.shuffle(tka)
 random.shuffle(gc)
 random.shuffle(psf)
@@ -65,7 +67,7 @@ print('Length of tka', len(tka), 'vs age', tka_min['date_unixtime'])
 print('Length of gc', len(gc), 'vs age', gc_min['date_unixtime'])
 print('Length of psf', len(psf), 'vs age', psf_min['date_unixtime'])
 
-samples = 15000
+samples = 50000
 
 with open('gc.jl', 'w+') as f:
   for message in gc[:samples]:

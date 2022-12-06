@@ -1,6 +1,8 @@
 total_fits = 0
 RESULTS_DIR = './result'
 
+import seaborn as sns
+
 from augment_data import (
   add_gender,
   add_msg_sentiment,
@@ -36,6 +38,7 @@ from sklearn.decomposition import LatentDirichletAllocation, PCA
 
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.naive_bayes import ComplementNB
 
 
 df = pd.read_csv('data.csv', low_memory=False)
@@ -64,15 +67,35 @@ column_transformer = ColumnTransformer(
   remainder='passthrough'
 )
 
+'''
+  'svc__C': [2**k for k in np.arange(4, 6, 0.1)],
+  'svc__gamma': [2**k for k in np.arange(-15, -12, 0.25)]
+'''
+
 svc_params = {
   'svc__kernel': ['rbf'],
-  'svc__C': [32],
-  'svc__gamma': [0.0001220703125]
+  'svc__C':[59.7141114583554],
+  'svc__gamma': [0.000205296976380301]
 }
 
+cnb_params = {
+  'cnb__alpha': [0.3],
+  'cnb__norm': [True, False]
+}
+
+'''
+'''
 trials = [
-    ('svc', svc_params, SVC())
+  ('svc', svc_params, SVC())
 ]
+
+class NDArraySaver(TransformerMixin):
+  def fit(self, X, y=None, **fit_params):
+    return self
+
+  def transform(self, X, y=None, **fit_params):
+    np.save('features.npy', X.todense())
+    return X
 
 class DenseTransformer(TransformerMixin):
   def fit(self, X, y=None, **fit_params):
@@ -165,7 +188,7 @@ def save_params_and_results(
   with open(
     os.path.join(
       RESULTS_DIR,
-      re.sub(' ', '', f'{when}-{classifier_name}.txt')
+      'svc_huge.txt'
     ),
     'w+'
   ) as f:
@@ -173,7 +196,7 @@ def save_params_and_results(
     f.write(f"[PIPELINE STEPS]\n")
     f.write(f"{grid_cv.best_estimator_.steps}")
 
-  pd.DataFrame(grid_cv.cv_results_).to_csv(os.path.join(RESULTS_DIR, re.sub(' ', '', f'{when}-results.csv')))
+  pd.DataFrame(grid_cv.cv_results_).to_csv("result/svc_huge.csv")
 
   ### Save a projection of the whole dataset
 for classifier_name, classifier_params, classifier in trials:
@@ -197,7 +220,7 @@ for classifier_name, classifier_params, classifier in trials:
     pipeline.steps = list(filter(lambda trans: not isinstance(trans[1], CanaryTransformer), pipeline.steps))
 
   param_grid = {
-    'kbest__k': [1000]
+    'kbest__k': [1005]
   } | classifier_params
 
   grid_search = GridSearchCV(
@@ -237,7 +260,7 @@ for classifier_name, classifier_params, classifier in trials:
   plt.savefig(
     os.path.join(
       RESULTS_DIR,
-      re.sub(" ", "", f"{when}-confusion.png")
+      re.sub(" ", "", f"svc_huge.png")
     )
   )
   print(f'Confusion Matrix for {classifier_name} saved.')

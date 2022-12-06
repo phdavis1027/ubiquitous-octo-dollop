@@ -1,1 +1,23 @@
 k = 1000 seems to be optimal
+Best hyperparameters found so far for SVC:
+C = 32
+gamma = 0.0001220703125
+That gave us ~69% balanced accuracy with 15k samples from each channel
+
+Grid search of hyperparamters in range:
+C = [2**k for k in np.arange(4, 6, 0.1)]
+gamma = [2**k for k in np.arange(-15, -12, 0.25)]
+
+Gave similar results when tested with 20k samples from each class.
+Specifically, we got 0.6934894111585975 balanced accuracy.
+
+We tried again with the same hyperparams and 30k samples and got
+0.7070608910937473
+
+---
+
+Tried ComplementNB with values of alpha in the range
+[2**k for k range(0, 12)].append(0), and with or without
+We used 10k samples.
+
+
