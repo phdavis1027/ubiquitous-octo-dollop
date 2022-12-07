@@ -213,13 +213,15 @@ for classifier_name, classifier_params, classifier in trials:
     if analyzer_name == 'lda':
       analyzer = LatentDirichletAllocation()
       transformer = count_transformer
+    else:
+      transformer = tfidf_transformer
 
     pipeline = Pipeline(
       [
         ('can_0', CanaryTransformer("Column Transformer (TFIDF on column 'text')")),
         ('col_transform', transformer),
-        ('can_0.1', CanaryTransformer("LDA")),
-        (analyzer_name, analyzer),
+        # ('can_0.1', CanaryTransformer("LDA")),
+        # (analyzer_name, analyzer),
         ('can_1', CanaryTransformer("StandardScaler")),
         ('std_scaler', StandardScaler(with_mean=False)),
         ('can_2', CanaryTransformer("VarianceThreshold")),
