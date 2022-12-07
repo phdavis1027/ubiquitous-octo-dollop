@@ -67,20 +67,27 @@ svc_params = {
 }
 
 cnb_params = {
-  'cnb__alpha': [2**k for k in range(8)],
-  'cnb__norm': [True, False]
+  'cnb__alpha': [.03],
 }
 
 trials = [
-  ('cnb', cnb_params, ComplementNB())
+  ('svc', svc_params, SVC())
 ]
 
-column_transformer = ColumnTransformer(
+column_transformer_topify = ColumnTransformer(
   [
     ('topify', TopicTransformer(), 'text')
   ],
   remainder='passthrough'
 )
+
+column_transformer = ColumnTransformer(
+  [
+    ('tfidf', TfidfVectorizer(), 'text')
+  ],
+  remainder='passthrough'
+)
+
 
 if len(sys.argv) > 1 and sys.argv[1] == 'pca':
   color_map = {
@@ -131,7 +138,7 @@ def save_params_and_results(
   with open(
     os.path.join(
       RESULTS_DIR,
-      'cnb_with_lda.txt'
+      'svc_coarse_search_ngram_range.txt'
     ),
     'w+'
   ) as f:
@@ -139,7 +146,7 @@ def save_params_and_results(
     f.write(f"[PIPELINE STEPS]\n")
     f.write(f"{grid_cv.best_estimator_.steps}")
 
-  pd.DataFrame(grid_cv.cv_results_).to_csv("result/cnb_with_lda.csv")
+  pd.DataFrame(grid_cv.cv_results_).to_csv("result/svc_coarse_search_ngram_range.csv")
 
   ### Save a projection of the whole dataset
 for classifier_name, classifier_params, classifier in trials:
@@ -156,10 +163,11 @@ for classifier_name, classifier_params, classifier in trials:
 
   if n_jobs > 1:
     pipeline.steps = list(filter(lambda trans: not isinstance(trans[1], CanaryTransformer), pipeline.steps))
+  print([(i, j) for i in range(4) for j in range (i, 4)])
 
   param_grid = {
-    'kbest__k': ['all'],
-    'col_transform__topify__n_components': [2**k for k in range(7, 14)]
+    'kbest__k': [1000],
+    'col_transform__tfidf__ngram_range': [(i, j) for i in range(1, 15) for j in range (i, 15)]
   } | classifier_params
 
   grid_search = GridSearchCV(
@@ -199,7 +207,7 @@ for classifier_name, classifier_params, classifier in trials:
   plt.savefig(
     os.path.join(
       RESULTS_DIR,
-      re.sub(" ", "", f"cnb_with_lda.png")
+      re.sub(" ", "", f"svc_coarse_search_ngram_range.png")
     )
   )
   print(f'Confusion Matrix for {classifier_name} saved.')

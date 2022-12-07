@@ -62,7 +62,7 @@ class NDArraySaver(TransformerMixin):
     return self
 
   def transform(self, X, y=None, **fit_params):
-    np.save('features.npy', X.todense())
+    np.save('features.npy', X)
     return X
 
 class DenseTransformer(TransformerMixin):
