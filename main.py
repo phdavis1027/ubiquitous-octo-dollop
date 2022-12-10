@@ -76,7 +76,7 @@ trials = [
 
 column_transformer_topify = ColumnTransformer(
   [
-    ('topify', TopicTransformer(), 'text')
+    ('topify', LdaTransformer(), 'text')
   ],
   remainder='passthrough'
 )
