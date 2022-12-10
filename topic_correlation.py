@@ -6,8 +6,14 @@ from sklearn.pipeline import Pipeline
 import seaborn as sns
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.feature_selection import VarianceThreshold
+import datetime
+when = datetime.datetime.now()
+import os
+import re
 
 from custom_transformers import LdaTransformer, NmfTransformer, TSvdTransformer
+
+RESULTS_DIR = './result'
 
 df = pd.read_csv('data.csv', low_memory=False)
 df = df[['text', 'channel', 'date_unixtime']].dropna()
@@ -46,8 +52,6 @@ topic_analyzers = [
     ('TSVD', col_transformer_tsvd)
 ]
 
-fig, axs = plt.subplots(1, len(topic_analyzers))
-
 for i, (name, analyzer) in enumerate(topic_analyzers):
     model = Pipeline(
         [
@@ -63,7 +67,18 @@ for i, (name, analyzer) in enumerate(topic_analyzers):
     print(corr.shape)
     print(corr)
 
-    sns.heatmap(data=corr[3000:6000, 3000:6000], ax=axs[i])
-    axs[i].set_title(f'Correlation of topics - {name}')
+    fig, ax = plt.subplots()
 
-plt.show()
+    sns.heatmap(data=corr[0:-1:3][0:-1:3], ax=ax)
+    ax.set_title(f'Correlation of topics - {name}')
+
+    plt.figure(fig)
+    plt.savefig(
+        os.path.join(
+        RESULTS_DIR,
+        re.sub(" ", "", f"{when}-{name}.png")
+        )
+    )
+    print(f'{name} correlation plot saved')
+
+# plt.show()
