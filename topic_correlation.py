@@ -62,14 +62,12 @@ for i, (name, analyzer) in enumerate(topic_analyzers):
     )
 
     X = model.fit_transform(df)
-    # print(X)
     corr = np.corrcoef(X)
     print(corr.shape)
-    print(corr)
 
     fig, ax = plt.subplots()
 
-    sns.heatmap(data=corr[0:-1:3][0:-1:3], ax=ax)
+    sns.heatmap(data=corr[0:-1:3][0:-1:3], ax=ax, cbar_kws={'ticks': [1.0, .75, .50, .25, 0.0, -.25, -.50, -.75, -1.0]}, vmin=-1.0, vmax=1.0)
     ax.set_title(f'Correlation of topics - {name}')
 
     plt.figure(fig)
@@ -80,5 +78,3 @@ for i, (name, analyzer) in enumerate(topic_analyzers):
         )
     )
     print(f'{name} correlation plot saved')
-
-# plt.show()
