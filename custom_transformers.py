@@ -47,6 +47,7 @@ class TSvdTransformer(TransformerMixin):
     svd = TruncatedSVD(n_components=self.n_components).fit(X)
     self.components_ = svd.components_
     X = svd.transform(X)
+    self.features = X
 
     return X
 
@@ -75,6 +76,7 @@ class NmfTransformer(TransformerMixin):
     nmf = NMF(n_components=self.n_components).fit(X)
     self.components_ = nmf.components_
     X = nmf.transform(X)
+    self.features = X
     return X
 
   def get_params(self, deep=False):
@@ -102,6 +104,9 @@ class LdaTransformer(TransformerMixin):
     lda = LatentDirichletAllocation(n_components=self.n_components).fit(X)
     self.components_ = lda.components_
     X = lda.transform(X)
+    self.features = X
+    print('lda shape')
+    print(X.shape)
 
     return X
 
