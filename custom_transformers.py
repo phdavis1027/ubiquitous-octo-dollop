@@ -41,8 +41,13 @@ class TSvdTransformer(TransformerMixin):
     return self
 
   def transform(self, X, y=None, **fit_params):
-    X = TfidfVectorizer().fit_transform(X)
-    X = TruncatedSVD(n_components=self.n_components).fit_transform(X)
+    vec = TfidfVectorizer(stop_words='english')
+    X = vec.fit_transform(X)
+    np.save('corr_tfidf.npy', vec.get_feature_names_out())
+    svd = TruncatedSVD(n_components=self.n_components).fit(X)
+    self.components_ = svd.components_
+    X = svd.transform(X)
+
     return X
 
   def get_params(self, deep=False):
@@ -64,8 +69,12 @@ class NmfTransformer(TransformerMixin):
     return self
 
   def transform(self, X, y=None, **fit_params):
-    X = TfidfVectorizer().fit_transform(X)
-    X = NMF(n_components=self.n_components).fit_transform(X)
+    vec = TfidfVectorizer(stop_words='english')
+    X = vec.fit_transform(X)
+    np.save('corr_tfidf.npy', vec.get_feature_names_out())
+    nmf = NMF(n_components=self.n_components).fit(X)
+    self.components_ = nmf.components_
+    X = nmf.transform(X)
     return X
 
   def get_params(self, deep=False):
@@ -87,8 +96,12 @@ class LdaTransformer(TransformerMixin):
     return self
 
   def transform(self, X, y=None, **fit_params):
-    X = CountVectorizer().fit_transform(X)
-    X = LatentDirichletAllocation(n_components=self.n_components).fit_transform(X)
+    vec = CountVectorizer(stop_words='english')
+    X = vec.fit_transform(X)
+    np.save('corr_count.npy', vec.get_feature_names_out())
+    lda = LatentDirichletAllocation(n_components=self.n_components).fit(X)
+    self.components_ = lda.components_
+    X = lda.transform(X)
 
     return X
 

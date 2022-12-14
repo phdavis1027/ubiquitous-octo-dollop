@@ -52,6 +52,13 @@ topic_analyzers = [
     ('TSVD', col_transformer_tsvd)
 ]
 
+no_top_words = 10
+
+def display_topics(model, feature_names, no_top_words):
+    for topic_idx, topic in enumerate(model.components_):
+        print(f'Topic {topic_idx}')
+        print(" ".join([feature_names[i] for i in topic.argsort()[:-no_top_words - 1:-1]]))
+
 for i, (name, analyzer) in enumerate(topic_analyzers):
     model = Pipeline(
         [
@@ -62,7 +69,24 @@ for i, (name, analyzer) in enumerate(topic_analyzers):
     )
 
     X = model.fit_transform(df)
+
+    features = None
+    if name == 'LDA':
+        features = np.load("corr_count.npy", allow_pickle=True)
+    else:
+        features = np.load("corr_tfidf.npy", allow_pickle=True)
+
+    nm, dscr, col = model['col_transform'].transformers_[0]
+    
+    display_topics(dscr, features, no_top_words)
+
+    # print(features)
+    # print(features.shape)
     corr = np.corrcoef(X)
+    tops = pd.DataFrame(corr)
+    # print(tops)
+    # ac = tops.mean(axis=0)
+    # print(ac)
     print(corr.shape)
 
     fig, ax = plt.subplots()
