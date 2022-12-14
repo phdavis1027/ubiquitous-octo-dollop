@@ -35,6 +35,8 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.naive_bayes import ComplementNB
 
+from clean_data import *
+
 
 df = pd.read_csv('data.csv', low_memory=False)
 # df = clean_text(df)
